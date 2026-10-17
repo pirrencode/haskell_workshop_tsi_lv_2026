@@ -31,24 +31,23 @@ sumOfSquares x y = square x + square y
 --    a NEW account value instead of mutating a shared balance.
 -- ============================================================
 
--- An Account is a function: amount -> (result, new Account).
--- The balance is captured in the closure's environment (its frame).
-type Account = Int -> (Either String Int, Account)
+-- A newtype (not a recursive 'type' synonym, which GHC rejects) lets
+-- the result carry the next Account, so state is threaded functionally.
+newtype Account = Account { runWithdraw :: Int -> (Either String Int, Account) }
 
 makeAccount :: Int -> Account
-makeAccount balance amount
-  | amount <= balance =
-      ( Right (balance - amount)
-      , makeAccount (balance - amount) )
-  | otherwise =
-      ( Left "Insufficient funds"
-      , makeAccount balance )
+makeAccount balance = Account $ \amount ->
+  if amount <= balance
+    then ( Right (balance - amount)
+         , makeAccount (balance - amount) )
+    else ( Left "Insufficient funds"
+         , makeAccount balance )
 
 -- Run a sequence of withdrawals, threading the account forward.
 withdrawAll :: Account -> [Int] -> [Either String Int]
 withdrawAll _ [] = []
 withdrawAll acc (a:rest) =
-  let (result, acc') = acc a
+  let (result, acc') = runWithdraw acc a
   in result : withdrawAll acc' rest
 
 -- ============================================================
@@ -119,8 +118,10 @@ tests = TestList
   , "factorial 6"        ~: factorial 6                  ~?= 720
   , "factIter 6"         ~: factIter 6                   ~?= 720
   , "factIter 0"         ~: factIter 0                   ~?= 1
-  , "withdraw ok"         ~: fst (makeAccount 100 25)     ~?= Right 75
-  , "withdraw too much"   ~: fst (makeAccount 50 60)     ~?= Left "Insufficient funds"
+  , "withdraw ok"         ~: fst (runWithdraw (makeAccount 100) 25)
+                                                ~?= Right 75
+  , "withdraw too much"   ~: fst (runWithdraw (makeAccount 50) 60)
+                                                ~?= Left "Insufficient funds"
   , "isPrefix"           ~: isPrefix "ER" "ERROR"        ~?= True
   , "errorLines filters" ~: errorLines ["ERROR a", "INFO b", "ERROR c"]
                                               ~?= ["ERROR a", "ERROR c"]
@@ -156,10 +157,10 @@ main = do
 
   putStrLn "\n== 2. Account with local state (functional) =="
   let acc0 = makeAccount 100
-      (r1, acc1) = acc0 25
-      (r2, acc2) = acc1 25
-      (r3, acc3) = acc2 60
-      (r4, _)    = acc3 15
+      (r1, acc1) = runWithdraw acc0 25
+      (r2, acc2) = runWithdraw acc1 25
+      (r3, acc3) = runWithdraw acc2 60
+      (r4, _)    = runWithdraw acc3 15
   putStrLn $ "withdraw 25 -> " ++ showResult r1
   putStrLn $ "withdraw 25 -> " ++ showResult r2
   putStrLn $ "withdraw 60 -> " ++ showResult r3
