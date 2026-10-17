@@ -66,9 +66,9 @@ factIter :: Int -> Int
 factIter n = go 1 1
   where
     go :: Int -> Int -> Int
-    go product counter
-      | counter > n = product
-      | otherwise   = go (counter * product) (counter + 1)
+    go acc counter
+      | counter > n = acc
+      | otherwise   = go (counter * acc) (counter + 1)
 
 -- ============================================================
 -- 4. Collections (slides 37-46)
