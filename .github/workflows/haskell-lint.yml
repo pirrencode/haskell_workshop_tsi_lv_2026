@@ -1,0 +1,81 @@
+# GitHub Actions workflow: Haskell code-quality / linting checks.
+# Save this file as:  .github/workflows/haskell-lint.yml
+# It runs independently of the test workflow (haskell-ci.yml):
+#   - Job 1 (hlint):    static analysis with HLint
+#   - Job 2 (weeder):   dead-code detection (unused exports/functions)
+#   - Job 3 (stylish):  code-style check with stylish-haskell
+
+name: Haskell Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  hlint:
+    name: HLint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run HLint
+        uses: haskell-actions/hlint-setup@v2
+        with:
+          hlint-version: '3.6'
+
+      - name: HLint check
+        uses: haskell-actions/hlint-run@v2
+        with:
+          path: '.'
+          fail-on: warning
+          # fail-on: warning -> job fails if any lint warning is found
+          # change to 'suggestion' to be stricter, 'error' to be looser
+
+  weeder:
+    name: Weeder (dead code)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up GHC and Cabal
+        uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.4.8'
+          cabal-version: '3.10.2.0'
+
+      - name: Build with dependencies and tooling
+        run: |
+          cabal update
+          cabal install --lib HUnit --package-env .
+          ghc --make -Wall Main.hs -o demo
+
+      - name: Install weeder
+        run: cabal install weeder --install-method=copy
+
+      - name: Run Weeder
+        run: weeder . --exclude .ghc.environment.*
+
+  stylish:
+    name: stylish-haskell (style)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install stylish-haskell
+        run: |
+          curl -sL https://github.com/haskell/stylish-haskell/releases/latest/download/stylish-haskell-linux-x86_64.tar.gz \
+            | tar xz
+          sudo mv stylish-haskell /usr/local/bin/
+
+      - name: Check formatting (diff must be empty)
+        run: |
+          stylish-haskell Main.hs > Main.stylish.hs
+          if ! diff -u Main.hs Main.stylish.hs; then
+            echo "::error::Main.hs is not stylish-haskell formatted"
+            exit 1
+          fi
