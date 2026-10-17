@@ -68,9 +68,15 @@ jobs:
 
       - name: Install stylish-haskell
         run: |
-          curl -sL https://github.com/haskell/stylish-haskell/releases/latest/download/stylish-haskell-linux-x86_64.tar.gz \
-            | tar xz
+          # Release asset names include the version (e.g.
+          # stylish-haskell-v0.14.6.0-linux-x86_64.tar.gz), so the
+          # "latest/download/..." URL 404s. Resolve the real URL via the API:
+          URL=$(curl -s https://api.github.com/repos/haskell/stylish-haskell/releases/latest \
+                | grep -oP '"browser_download_url":\s*"\K[^"]*linux-x86_64\.tar\.gz')
+          echo "Downloading: $URL"
+          curl -sL "$URL" | tar xz
           sudo mv stylish-haskell /usr/local/bin/
+          stylish-haskell --version
 
       - name: Check formatting (diff must be empty)
         run: |
