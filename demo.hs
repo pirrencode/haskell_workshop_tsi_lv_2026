@@ -5,6 +5,8 @@
 
 module Main where
 
+import Test.HUnit
+
 -- ============================================================
 -- 1. Pure functions & composition (slides 4, 7)
 --    No side effects: same input, same output, every time.
@@ -107,6 +109,36 @@ shadowDemo :: Int -> Int
 shadowDemo x = x + 1
 
 -- ============================================================
+-- Unit tests (HUnit)
+-- ============================================================
+
+tests :: Test
+tests = TestList
+  [ "squareThenInc 3"    ~: squareThenInc 3               ~?= 10
+  , "sumOfSquares 3 4"   ~: sumOfSquares 3 4             ~?= 25
+  , "factorial 6"        ~: factorial 6                  ~?= 720
+  , "factIter 6"         ~: factIter 6                   ~?= 720
+  , "factIter 0"         ~: factIter 0                   ~?= 1
+  , "withdraw ok"         ~: fst (makeAccount 100 25)     ~?= Right 75
+  , "withdraw too much"   ~: fst (makeAccount 50 60)     ~?= Left "Insufficient funds"
+  , "isPrefix"           ~: isPrefix "ER" "ERROR"        ~?= True
+  , "errorLines filters" ~: errorLines ["ERROR a", "INFO b", "ERROR c"]
+                                              ~?= ["ERROR a", "ERROR c"]
+  , "errorLines limit 40" ~: length (errorLines (replicate 100 "ERROR x"))
+                                              ~?= 40
+  , "count"              ~: count [1 .. 10 :: Int]        ~?= 10
+  , "total"              ~: total [1 .. 100 :: Int]       ~?= 5050
+  , "shadowDemo 7"        ~: shadowDemo 7                 ~?= 8
+  ]
+
+runTests :: IO ()
+runTests = do
+  counts <- runTestTT tests
+  if errors counts + failures counts > 0
+    then ioError (userError "Unit tests FAILED")
+    else putStrLn "All unit tests passed."
+
+-- ============================================================
 -- Demo
 -- ============================================================
 
@@ -116,7 +148,9 @@ showResult (Left e)  = "Error: " ++ e
 
 main :: IO ()
 main = do
-  putStrLn "== 1. Pure functions & composition =="
+  runTests
+
+  putStrLn "\n== 1. Pure functions & composition =="
   putStrLn $ "squareThenInc 3 = " ++ show (squareThenInc 3)
   putStrLn $ "sumOfSquares 3 4 = " ++ show (sumOfSquares 3 4)
 

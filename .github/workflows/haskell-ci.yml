@@ -1,0 +1,42 @@
+# GitHub Actions workflow for the Haskell Lecture 5 demo.
+# Save this file as:  .github/workflows/haskell-ci.yml
+# Repo layout expected by this workflow:
+#   Main.hs   (the demo app with HUnit unit tests, module Main)
+
+name: Haskell CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  unittest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up GHC and Cabal
+        uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.4.8'
+          cabal-version: '3.10.2.0'
+          enable-stack: false
+
+      - name: Update Cabal package list
+        run: cabal update
+
+      # Install HUnit into a local package environment (./.ghc.environment.*)
+      - name: Install HUnit
+        run: cabal install --lib HUnit --package-env .
+
+      # -Wall -Werror: treat warnings as errors so "errors" fail the build
+      - name: Compile with warnings as errors
+        run: ghc --make -Wall -Werror -O2 Main.hs -o demo
+
+      # Running ./demo executes the HUnit test suite first;
+      # a non-zero exit code (ioError on test failure) fails the job.
+      - name: Run unit tests
+        run: ./demo
