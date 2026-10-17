@@ -1,0 +1,1 @@
+# haskell_workshop_tsi_lv_2026
