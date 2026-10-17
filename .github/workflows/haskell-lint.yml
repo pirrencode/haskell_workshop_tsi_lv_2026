@@ -47,17 +47,19 @@ jobs:
           ghc-version: '9.4.8'
           cabal-version: '3.10.2.0'
 
-      - name: Build with dependencies and tooling
+      - name: Build with HIE files (needed by weeder 2.x)
         run: |
           cabal update
           cabal install --lib HUnit --package-env .
-          ghc --make -Wall Main.hs -o demo
+          ghc --make -Wall Main.hs -o demo -hiedir .hie
 
       - name: Install weeder
         run: cabal install weeder --install-method=copy
 
+      # Weeder 2.x: no path argument. It auto-discovers .hie files
+      # in the project (and does not need a config file for defaults).
       - name: Run Weeder
-        run: weeder . --exclude .ghc.environment.*
+        run: weeder
 
   stylish:
     name: stylish-haskell (style)
